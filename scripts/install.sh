@@ -54,7 +54,7 @@ Description=vipercoma Station
 After=network.target
 [Service]
 User=$station_user
-WorkingDirectory="$station_source"
+WorkingDirectory=$station_source
 Environment=STATION_STATE_DIR=$station_state
 ExecStart="$station_source/.venv/bin/python" "$station_source/app.py" --port 8080
 Restart=on-failure
