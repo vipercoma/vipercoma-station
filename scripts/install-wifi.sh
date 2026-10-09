@@ -41,6 +41,13 @@ fi
 check_managed_file() {
   local source=$1 destination=$2
   if [[ -e $destination ]] && ! cmp -s "$source" "$destination"; then
+    # Allow only the exact previous helper shipped by the Station 2.1.0 Wi-Fi release.
+    # This keeps a normal upgrade possible while refusing local or third-party edits.
+    if [[ $source == wifi_admin.py ]] \
+        && [[ $(/usr/bin/sha256sum "$destination" | /usr/bin/cut -d' ' -f1) == 4c44f1168c403e6eb955e2acdc109e011ade3977109edbe890c1c224d75b4807 ]]; then
+      echo 'Recognized the original Station 2.1.0 Wi-Fi helper; upgrading it to the strongest-network selector.'
+      return
+    fi
     echo "Existing file differs from the Station Wi-Fi release: $destination" >&2
     echo 'Inspect and back it up before retrying; nothing has been installed.' >&2
     exit 1
