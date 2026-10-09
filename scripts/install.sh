@@ -72,8 +72,8 @@ systemctl daemon-reload
 systemctl enable vipercoma-workspace.service
 systemctl restart vipercoma-workspace.service
 for attempt in {1..15}; do
-  if .venv/bin/python scripts/check-health.py 2.1.0-wifi; then
-    echo 'Station 2.1.0 Wi-Fi release is responding. Use your existing Station password.'
+  if .venv/bin/python scripts/check-health.py 2.2.0-wifi; then
+    echo 'Station 2.2.0 Wi-Fi release is responding. Use your existing Station password.'
     echo 'Open http://pihole.local:8080 or the current LAN address.'
     echo "Previous service configuration: $station_backup"
     trap - ERR

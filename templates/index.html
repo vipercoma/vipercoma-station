@@ -1,22 +1,29 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="color-scheme" content="dark light"><title>vipercoma Station</title>
-<link rel="stylesheet" href="{{ url_for('static', filename='station.css') }}"></head><body><div class="background" aria-hidden="true"><div class="dots"></div><div class="glow"></div><div class="pulse"></div></div>
-<main><header><div class="brand"><img class="brand-mark" src="{{ url_for('static', filename='viper.svg') }}" width="32" height="32" alt="">vipercoma <span>/ Station</span></div><div class="header-actions"><a href="/setup" class="network-link">Wi-Fi setup</a><a href="/workspace" class="network-link">Workspace</a>
-<button class="icon-button" id="theme" aria-label="Switch to light theme" title="Switch theme"><svg aria-hidden="true" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5m11 11L19 19M5 19l1.5-1.5m11-11L19 5"/></svg></button>
-<button class="icon-button" id="settings-toggle" aria-label="Visual settings" title="Visual settings" aria-expanded="false" aria-controls="settings"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M4 7h16M4 17h16"/><circle cx="9" cy="7" r="3" fill="var(--surface)"/><circle cx="15" cy="17" r="3" fill="var(--surface)"/></svg></button></div></header>
-<section class="settings" id="settings" hidden aria-label="Visual settings"><div class="settings-row"><div class="settings-copy"><h2>Subtle phone tilt</h2><p id="motion-note">Gently shift the background as you move your phone. Optional.</p></div><button id="motion" aria-pressed="false">Enable tilt</button></div></section>
-<section class="hero"><div class="eyebrow">Your portable workspace</div><h1>Small device.<br>Room to build.</h1><p>A home for your notes, diagnostics, and device health.</p><div class="hero-bottom"><span class="badge" id="status" role="status">Connecting…</span><span class="hint">One workspace. More possibilities.</span></div></section>
-<div class="metrics">
-<section class="metric" aria-label="Available memory"><label>RAM available</label><div class="value" id="memory">—</div><div class="detail" id="memory-detail">Waiting for device</div></section>
-<section class="metric" aria-label="Free storage"><label>Storage free</label><div class="value" id="disk">—</div><div class="detail" id="disk-detail">Waiting for device</div></section>
-<section class="metric" aria-label="Device uptime"><label>Uptime</label><div class="value" id="uptime">—</div><div class="detail" id="host">Waiting for device</div></section>
-</div>
-<nav class="tabs" role="tablist" aria-label="Workspace sections"><button id="tab-overview" role="tab" aria-selected="true" aria-controls="overview" tabindex="0">Overview</button><button id="tab-tools" role="tab" aria-selected="false" aria-controls="catalog" tabindex="-1">Tools <span class="count">{{ tools|length }}</span></button></nav>
-<section id="overview" role="tabpanel" aria-labelledby="tab-overview"><div class="section"><h2>Pinned tools</h2><button class="text-button" id="browse">Browse all tools →</button></div><div class="tools" id="pinned-tools"></div><p class="empty" id="pinned-empty" hidden>Pin a tool from the Tools tab to keep it here.</p></section>
-<section id="catalog" role="tabpanel" aria-labelledby="tab-tools" hidden><div class="toolbar"><input id="search" type="search" placeholder="Find a tool…" aria-label="Search tools"><select id="category" aria-label="Tool category"><option value="all">All tools</option><option value="files">Files</option><option value="network">Network</option></select></div><div class="tools" id="all-tools"></div><p class="empty" id="search-empty" hidden>No tools match. Try another search or category.</p></section>
-<footer><span>Station {{ version }}</span><span id="updated">No readings yet</span></footer></main><div class="toast" id="toast" role="status" hidden></div>
-<script id="tools-data" type="application/json">{{ tools|tojson }}</script>
-<script src="{{ url_for('static', filename='station.js') }}" defer></script></body></html>
-
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <meta name="csrf-token" content="{{ csrf_token }}">
+  <title>vipercoma Station</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='station.css') }}">
+</head>
+<body>
+  <div class="background" aria-hidden="true"><div class="dots"></div><div class="glow"></div><div class="pulse"></div></div>
+  <main class="app">
+    <header class="top">
+      <div class="brand"><div class="logo" aria-hidden="true">VC</div><div><div class="eyebrow">Portable control system</div><h1>VIPERCOMA STATION</h1></div></div>
+      <div class="header-actions"><a class="network-link" href="/setup">Wi-Fi setup</a><a class="network-link" href="/workspace">Workspace</a><span class="online" id="online"><i></i><span>CHECKING CORE</span></span></div>
+    </header>
+    <section class="hero"><div class="eyebrow">Station launcher / dashboard</div><h2>Tools<br><span>ready.</span></h2><p>Launch the station’s available tools from your phone. The station stays quiet until you need it.</p><div class="mode"><i></i><span id="network-mode">LOCAL STATION</span><span aria-hidden="true">·</span><span id="network-address">DEVICE STATUS</span></div></section>
+    <nav class="tabs" aria-label="Station sections" role="tablist"><button class="tab active" data-view="overview" role="tab" aria-selected="true">Overview</button><button class="tab" data-view="tools" role="tab" aria-selected="false">Tool catalog</button><button class="tab" data-view="activity" role="tab" aria-selected="false">Activity</button><button class="tab" data-view="system" role="tab" aria-selected="false">System</button></nav>
+    <section id="overview" class="view active" role="tabpanel" aria-hidden="false"><div class="heading"><h2>Station snapshot</h2><small>LIVE STATUS</small></div><div class="stats"><div class="stat"><b id="running-count">—</b><small>AVAILABLE TOOLS</small></div><div class="stat"><b id="memory">—</b><small>RAM AVAILABLE</small></div><div class="stat"><b id="storage">—</b><small>STORAGE FREE</small></div><div class="stat"><b id="uptime">—</b><small>UPTIME</small></div></div><div class="heading launch-heading"><h2>Ready to launch</h2><small>TOUCH OR CLICK</small></div><div class="cards" id="home"></div></section>
+    <section id="tools" class="view" role="tabpanel" hidden><div class="heading"><h2>Tool catalog</h2><small>AVAILABLE NOW</small></div><div class="cards" id="catalog"></div></section>
+    <section id="activity" class="view" role="tabpanel" hidden><div class="heading"><h2>Activity log</h2><small>LOCAL SESSION</small></div><div class="activity" id="activity-list"><div class="event"><b>Station dashboard opened</b><span id="activity-time">Waiting for device status</span></div><div class="event"><b>Activity history isn’t configured</b><span>This first iteration doesn’t save a persistent event log.</span></div></div></section>
+    <section id="system" class="view" role="tabpanel" hidden><div class="heading"><h2>System</h2><small>CORE SERVICES</small></div><div class="activity"><div class="event"><b>vipercoma-workspace.service</b><span id="service-status">Checking local health endpoint…</span></div><div class="event"><b>Device</b><span id="device-details">Waiting for live status</span></div><div class="event"><b>Wi-Fi onboarding</b><span>Open Wi-Fi setup to scan for and join a network.</span><a href="/setup">Open Wi-Fi setup →</a></div></div></section>
+    <footer class="footer"><span>VIPERCOMA STATION / {{ version }}</span><span>LOCAL DEVICE · NO CLOUD REQUIRED</span></footer>
+  </main><div class="toast" id="toast" role="status" hidden></div>
+  <script id="tools-data" type="application/json">{{ tools|tojson }}</script>
+  <script src="{{ url_for('static', filename='station.js') }}" defer></script>
+</body>
+</html>

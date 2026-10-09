@@ -18,7 +18,7 @@ from diagnostics import health as device_health, probe
 from auth import STATE, session_key, password_matches, password_ready
 from notes import NotesStore
 
-VERSION = "2.1.0-wifi"
+VERSION = "2.2.0-wifi"
 WIFI_HELPER = "/usr/local/libexec/vipercoma-wifi"
 TOOLS = [
     {"id": "notes", "name": "Shared notes", "category": "files", "status": "Ready",

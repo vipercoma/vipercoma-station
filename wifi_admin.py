@@ -44,8 +44,41 @@ def scan():
         except ValueError: continue
         security = cols[2] or "Open"
         supported = not any(term in security.upper() for term in ("802.1X", "EAP", "WEP"))
-        rows[cols[0]] = {"ssid": cols[0], "signal": signal, "security": security, "supported": supported}
+        current = rows.get(cols[0])
+        if current is None or signal > current["signal"]:
+            rows[cols[0]] = {"ssid": cols[0], "signal": signal, "security": security, "supported": supported}
     return sorted(rows.values(), key=lambda x: (-x["signal"], x["ssid"]))[:100]
+
+def saved_wifi_profiles():
+    """Return saved, auto-connect infrastructure profiles without exposing secrets."""
+    result = run(["/usr/bin/nmcli", "--terse", "--escape", "yes", "--fields", "UUID,TYPE", "connection", "show"], timeout=10)
+    profiles = []
+    for line in result.stdout.splitlines():
+        parts = line.split(":", 1)
+        if len(parts) != 2 or parts[1] != "802-11-wireless": continue
+        ident = parts[0]
+        if not ident or any(c not in "0123456789abcdef-" for c in ident.lower()): continue
+        settings = run(["/usr/bin/nmcli", "-g", "802-11-wireless.ssid,connection.autoconnect,connection.autoconnect-priority,802-11-wireless.mode", "connection", "show", "uuid", ident], timeout=8, check=False)
+        values = settings.stdout.splitlines()
+        if settings.returncode or len(values) != 4: continue
+        ssid, autoconnect, priority, mode = values
+        if not ssid or autoconnect.lower() != "yes" or mode not in ("", "infrastructure"): continue
+        try: priority = int(priority)
+        except ValueError: priority = 0
+        profiles.append({"uuid": ident, "ssid": ssid, "priority": priority})
+    return profiles
+
+def strongest_saved_profiles(networks=None, profiles=None):
+    """Rank visible saved Wi-Fi profiles by strongest observed signal first."""
+    networks = scan() if networks is None else networks
+    profiles = saved_wifi_profiles() if profiles is None else profiles
+    strongest = {}
+    for network in networks:
+        ssid = network.get("ssid")
+        if isinstance(ssid, str): strongest[ssid] = max(strongest.get(ssid, -1), int(network.get("signal", 0)))
+    candidates = [dict(profile, signal=strongest[profile["ssid"]])
+                  for profile in profiles if profile.get("ssid") in strongest]
+    return sorted(candidates, key=lambda profile: (-profile["signal"], -profile["priority"], profile["ssid"], profile["uuid"]))
 
 def install_ap():
     existing = run(["/usr/bin/nmcli", "-g", "connection.uuid", "connection", "show", AP_ID], timeout=8, check=False)
@@ -144,6 +177,35 @@ def active_wifi():
     if len(v) < 2 or v[1].strip() in {"", "--"}: return ""
     return v[1].strip()
 
+def active_uuid():
+    result = run(["/usr/bin/nmcli", "-g", "GENERAL.CON-UUID", "device", "show", IFACE], timeout=5, check=False)
+    return result.stdout.strip() if result.returncode == 0 else ""
+
+def prefer_strongest_saved_wifi():
+    """Try visible saved profiles strongest first; return True once Wi-Fi is usable."""
+    current_name = active_wifi()
+    current_uuid = active_uuid()
+    if current_name and current_name != AP_ID:
+        # Preserve active hidden or manually-managed profiles that are not in a scan.
+        try: candidates = strongest_saved_profiles()
+        except (OSError, RuntimeError, subprocess.SubprocessError): return True
+        if not any(profile["uuid"] == current_uuid for profile in candidates): return True
+        if candidates and candidates[0]["uuid"] == current_uuid: return True
+    else:
+        try: candidates = strongest_saved_profiles()
+        except (OSError, RuntimeError, subprocess.SubprocessError) as exc:
+            print("Could not scan saved Wi-Fi profiles: " + str(exc)[:200], flush=True)
+            return False
+    for profile in candidates:
+        if profile["uuid"] == current_uuid: return True
+        print("Trying saved Wi-Fi profile at signal " + str(profile["signal"]) + "%.", flush=True)
+        result = run(["/usr/bin/nmcli", "--wait", "25", "connection", "up", "uuid", profile["uuid"], "ifname", IFACE], timeout=30, check=False)
+        if result.returncode == 0 and active_uuid() == profile["uuid"]:
+            print("Connected to the strongest available saved Wi-Fi profile.", flush=True)
+            return True
+        print("Saved Wi-Fi attempt failed; trying the next strongest profile.", flush=True)
+    return False
+
 def manager():
     ap = AP_ID
     # Allow normal saved-profile autoconnect to complete first.
@@ -151,6 +213,7 @@ def manager():
     while time.monotonic() < deadline:
         if active_wifi() and active_wifi() != ap: break
         time.sleep(5)
+    prefer_strongest_saved_wifi()
     while True:
         if PENDING.exists():
             try:
@@ -168,8 +231,9 @@ def manager():
                 elif active == ap:
                     run(["/usr/bin/systemctl", "start", "vipercoma-setup-net.service", "vipercoma-setup-portal.service"], timeout=20, check=False)
                 else:
-                    result = run(["/usr/bin/nmcli", "--wait", "25", "connection", "up", "uuid", ap_uuid(), "ifname", IFACE], timeout=30, check=False)
-                    if result.returncode: print("Setup hotspot activation failed: " + (result.stderr or "network manager error").strip()[:240], flush=True)
+                    if not prefer_strongest_saved_wifi():
+                        result = run(["/usr/bin/nmcli", "--wait", "25", "connection", "up", "uuid", ap_uuid(), "ifname", IFACE], timeout=30, check=False)
+                        if result.returncode: print("Setup hotspot activation failed: " + (result.stderr or "network manager error").strip()[:240], flush=True)
         except (OSError, RuntimeError, subprocess.SubprocessError) as exc:
             print("Wi-Fi manager retry: " + str(exc)[:200], flush=True)
         time.sleep(5)

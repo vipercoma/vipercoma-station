@@ -45,6 +45,15 @@ class StationTests(unittest.TestCase):
             self.assertEqual(response.status_code, 200, path)
             response.close()
 
+    def test_launcher_has_live_station_tabs_and_real_tools(self):
+        response = self.client.get('/')
+        self.assertIn('Station snapshot', response.text)
+        self.assertIn('Tool catalog', response.text)
+        self.assertIn('Activity log', response.text)
+        self.assertIn('System', response.text)
+        self.assertIn('tools|tojson', Path(station.app.template_folder, 'index.html').read_text())
+        self.assertNotIn('Pwnagotchi Audit', response.text)
+
     def test_removed_tools_are_unreachable(self):
         for path in ('/wifi', '/network', '/api/workspace/files', '/api/wifi/status', '/api/workspace/files/test/download'):
             self.assertEqual(self.client.get(path).status_code, 404)
@@ -125,7 +134,7 @@ class StationTests(unittest.TestCase):
         self.assertNotIn('unsafe-inline', response.headers['Content-Security-Policy'])
 
     def test_health_identifies_release(self):
-        self.assertEqual(self.client.get('/healthz').json, {'status':'ok','version':'2.1.0-wifi'})
+        self.assertEqual(self.client.get('/healthz').json, {'status':'ok','version':'2.2.0-wifi'})
 
     def test_logout_clears_session(self):
         self.assertEqual(self.client.post('/logout', headers=self.headers).status_code, 200)
@@ -192,6 +201,46 @@ class PasswordTests(unittest.TestCase):
 
 
 class WifiHelperTests(unittest.TestCase):
+    def test_scan_keeps_strongest_reading_for_each_ssid(self):
+        output = "Home:31:WPA2\nGuest:40:WPA2\nHome:88:WPA2\n"
+        with patch.object(wifi_admin, 'run', return_value=subprocess.CompletedProcess([], 0, output, '')):
+            networks = wifi_admin.scan()
+        self.assertEqual([(row['ssid'], row['signal']) for row in networks], [('Home', 88), ('Guest', 40)])
+
+    def test_saved_wifi_profiles_rank_by_signal_then_profile_priority(self):
+        networks = [
+            {'ssid':'Home', 'signal':68}, {'ssid':'Office', 'signal':91},
+            {'ssid':'Home', 'signal':84}, {'ssid':'Guest', 'signal':41},
+        ]
+        profiles = [
+            {'ssid':'Home', 'uuid':'home-old', 'priority':20},
+            {'ssid':'Home', 'uuid':'home-new', 'priority':50},
+            {'ssid':'Office', 'uuid':'office', 'priority':1},
+            {'ssid':'Not nearby', 'uuid':'away', 'priority':100},
+        ]
+        ranked = wifi_admin.strongest_saved_profiles(networks, profiles)
+        self.assertEqual([row['uuid'] for row in ranked], ['office', 'home-new', 'home-old'])
+        self.assertEqual(ranked[1]['signal'], 84)
+
+    def test_boot_wifi_attempts_saved_profiles_in_strength_order(self):
+        candidates = [
+            {'ssid':'Strong', 'uuid':'strong', 'priority':0, 'signal':90},
+            {'ssid':'Weak', 'uuid':'weak', 'priority':0, 'signal':50},
+        ]
+        calls = []
+        def fake_run(args, **kwargs):
+            calls.append(args)
+            if 'connection' in args and 'up' in args:
+                return subprocess.CompletedProcess(args, 1 if args[args.index('uuid') + 1] == 'strong' else 0, '', '')
+            return subprocess.CompletedProcess(args, 0, '', '')
+        with patch.object(wifi_admin, 'active_wifi', return_value=''), \
+             patch.object(wifi_admin, 'active_uuid', side_effect=['', 'weak']), \
+             patch.object(wifi_admin, 'strongest_saved_profiles', return_value=candidates), \
+             patch.object(wifi_admin, 'run', side_effect=fake_run):
+            self.assertTrue(wifi_admin.prefer_strongest_saved_wifi())
+        attempted = [args[args.index('uuid') + 1] for args in calls if 'connection' in args and 'up' in args]
+        self.assertEqual(attempted, ['strong', 'weak'])
+
     def test_scan_parses_escaped_ssids_and_marks_enterprise_unsupported(self):
         output = "Home\\: Upstairs:82:WPA2\nOffice:74:WPA2 802.1X\nGuest:31:\n"
         with patch.object(wifi_admin, 'run', return_value=subprocess.CompletedProcess([], 0, output, '')):

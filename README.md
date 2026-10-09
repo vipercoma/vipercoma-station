@@ -4,13 +4,13 @@
 
 **[Watch the interface preview](docs/previews/station-interaction-preview.mp4)** · Design preview of the dashboard interactions.
 
-A local workspace for a Raspberry Pi or Linux computer. Version **2.1.0-wifi** adds an optional boot-time Wi-Fi setup hotspot while preserving Station sign-in, notes, diagnostics, and device health.
+A local workspace for a Raspberry Pi or Linux computer. Version **2.2.0-wifi** adds an optional boot-time Wi-Fi setup hotspot while preserving Station sign-in, notes, diagnostics, and device health. The authenticated home page is a yellow launcher dashboard with a reactive dotted background, live device readings, and Overview, Tool Catalog, Activity, and System tabs.
 
 ## Boot and Wi-Fi onboarding
 
-The setup service gives saved Wi-Fi profiles up to 50 seconds to connect at boot. If none connects, it enables the secured `vipercoma-setup` hotspot. Connect your phone to that network and open `http://10.77.0.1:8080/setup` (or use the phone's captive-network prompt). Sign in with your **Station password**, choose the home/mobile Wi-Fi network, and enter that network's password.
+At boot, the setup service allows NetworkManager up to 50 seconds to connect, then scans visible saved auto-connect Wi-Fi profiles and attempts them strongest-signal first. Signal is a scan-time snapshot and can vary with the Pi's radio/driver. If no saved profile connects, it enables the secured `vipercoma-setup` hotspot. Connect your phone to that network and open `http://10.77.0.1:8080/setup` (or use the phone's captive-network prompt). Sign in with your **Station password**, choose the home/mobile Wi-Fi network, and enter that network's password.
 
-When the Pi joins the selected network, it leaves the setup hotspot. Join that same network from your phone and open `http://pihole.local:8080`, or use the Pi's LAN address if `.local` names are unavailable. If the Wi-Fi connection fails, the Pi restores the setup hotspot. One built-in radio operates in hotspot or normal Wi-Fi mode; this does not provide simultaneous access point and client mode or internet sharing.
+When the Pi joins the selected network, it leaves the setup hotspot. Join that same network from your phone and open `http://pihole.local:8080`, or use the Pi's LAN address if `.local` names are unavailable. This local connection does not require Tailscale. Tailscale reconnects through its own installed service when the selected Wi-Fi has internet; Station does not install, reconfigure, or require Tailscale. If the Wi-Fi connection fails, the Pi restores the setup hotspot. One built-in radio operates in hotspot or normal Wi-Fi mode; this does not provide simultaneous access point and client mode or internet sharing.
 
 The setup hotspot password is entered once during installation. The hotspot password, Station sign-in password, and normal Wi-Fi password are separate credentials. They can have the same value if you choose, but the application never copies one into another. The WebUI stores only a hash of the Station password. NetworkManager stores saved Wi-Fi credentials in root-owned profiles outside the repository.
 
@@ -38,6 +38,8 @@ Without Wi-Fi setup enabled, Station stays on the host's existing network. Open 
 | Shared notes | Persist up to 200 notes, each up to 4000 characters |
 | Network diagnostics | Read addresses, routes, neighbor cache, DNS, and latency |
 | Device health | Show RAM, storage, uptime, temperature, and load |
+
+The dashboard links to those implemented tools. Activity history is not persistent yet; its tab reports the current session and makes that limitation clear. The launcher artwork's Audit Center, Pwnagotchi Audit, File Hub, Automation Flows, CyberChef, and PiKVM cards are design examples, not installed or working tools in this release.
 
 The Wi-Fi setup page is a separate, authenticated system feature. It is not a general-purpose network-control tool. No traffic blocking, gateway manipulation, password capture, or internet forwarding is implemented.
 
