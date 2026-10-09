@@ -1,5 +1,6 @@
-"""Station local workspace. No privileged networking operations."""
+"""Station local workspace; Wi-Fi changes use a narrowly scoped root helper."""
 import argparse
+import json
 import hmac
 import secrets
 import time
@@ -17,7 +18,8 @@ from diagnostics import health as device_health, probe
 from auth import STATE, session_key, password_matches, password_ready
 from notes import NotesStore
 
-VERSION = "2.0.0"
+VERSION = "2.1.0-wifi"
+WIFI_HELPER = "/usr/local/libexec/vipercoma-wifi"
 TOOLS = [
     {"id": "notes", "name": "Shared notes", "category": "files", "status": "Ready",
      "description": "Keep text and quick handoffs together on your Pi.",
@@ -51,12 +53,13 @@ def local_access():
         allowed = hostname in allowed_names
     if not allowed:
         abort(400)
-    if request.endpoint in (None, "static", "health", "login"):
+    if request.endpoint in (None, "static", "health", "login", "captive_check"):
         return
     if not session.get("authenticated"):
         if request.path.startswith("/api/"):
             return jsonify(error="Sign in to Station."), 401
-        return redirect(url_for("login"))
+        next_page = "/setup" if request.endpoint == "wifi_setup_page" else "/"
+        return redirect(url_for("login", next=next_page))
     if request.method == "POST":
         validate_submission(request.headers.get("X-CSRF-Token"), session.get("csrf"))
 
@@ -79,6 +82,9 @@ def page_tokens():
 @app.route("/login", methods=["GET", "POST"])
 def login():
     error = None
+    next_page = request.args.get("next", "/")
+    if next_page not in {"/", "/setup"}:
+        next_page = "/"
     session.setdefault("login_csrf", secrets.token_urlsafe(24))
     if request.method == "POST":
         validate_submission(request.form.get("login_csrf"), session.get("login_csrf"))
@@ -86,9 +92,9 @@ def login():
         key = request.remote_addr or ""
         history = [t for t in login_attempts.get(key, []) if now - t < 60]
         if len(history) >= 5:
-            return render_template("login.html", error="Wait a minute before trying again."), 429
+            return render_template("login.html", error="Wait a minute before trying again.", next=next_page), 429
         if not password_ready():
-            return render_template("login.html", error="Set your Station password on the device first."), 503
+            return render_template("login.html", error="Set your Station password on the device first.", next=next_page), 503
         if not password_matches(request.form.get("password", "")):
             history.append(now)
             if len(login_attempts) >= 256:
@@ -101,8 +107,8 @@ def login():
             session["authenticated"] = True
             session["csrf"] = secrets.token_urlsafe(24)
             session.permanent = True
-            return redirect(url_for("home"))
-    return render_template("login.html", error=error)
+            return redirect(next_page)
+    return render_template("login.html", error=error, next=next_page)
 
 
 @app.post("/logout")
@@ -117,6 +123,46 @@ notes_store = NotesStore(STATE / "workspace")
 @app.get("/workspace")
 def workspace_page():
     return render_template("workspace.html", version=VERSION)
+
+
+@app.get("/setup")
+def wifi_setup_page():
+    return render_template("wifi_setup.html")
+
+
+@app.get("/api/wifi/networks")
+def wifi_networks():
+    return wifi_helper("scan")
+
+
+@app.post("/api/wifi/connect")
+def wifi_connect():
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict):
+        return jsonify(error="Choose a network and enter its password."), 400
+    return wifi_helper("connect", data)
+
+
+def wifi_helper(action, data=None):
+    try:
+        result = subprocess.run(
+            ["sudo", "-n", WIFI_HELPER, action], input=json.dumps(data or {}),
+            capture_output=True, text=True, timeout=30, check=False,
+        )
+        response = json.loads(result.stdout or "{}")
+        if result.returncode:
+            return jsonify(error=response.get("error", "Wi-Fi operation failed.")), 400
+        return jsonify(response), 200 if action == "scan" else 202
+    except (OSError, subprocess.SubprocessError, json.JSONDecodeError):
+        return jsonify(error="Wi-Fi setup helper is unavailable."), 503
+
+
+@app.get("/generate_204")
+@app.get("/hotspot-detect.html")
+def captive_check():
+    if not session.get("authenticated"):
+        return redirect(url_for("login", next="/setup"))
+    return redirect(url_for("wifi_setup_page"))
 
 
 @app.get("/api/workspace/notes")

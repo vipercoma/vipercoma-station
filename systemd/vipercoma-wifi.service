@@ -1,0 +1,17 @@
+[Unit]
+Description=vipercoma Station Wi-Fi fallback
+Wants=NetworkManager.service vipercoma-workspace.service
+After=NetworkManager.service network-online.target vipercoma-workspace.service
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 /usr/local/libexec/vipercoma-wifi-admin.py manager
+Restart=always
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/run/lock /run/vipercoma-wifi-connect.pending /run/vipercoma-wifi-connect.tmp /etc/NetworkManager/system-connections
+UMask=0077
+[Install]
+WantedBy=multi-user.target

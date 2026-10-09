@@ -10,8 +10,9 @@ if [[ ! $station_user =~ ^[a-z_][a-z0-9_-]*$ || $station_source == *$'\n'* || $s
   echo 'Unsupported installation user or path.' >&2; exit 1
 fi
 cd "$station_source"
-if systemctl is-active --quiet vipercoma-wifi.service; then
-  echo 'The retired Wi-Fi helper is active. Complete the reset first.' >&2; exit 1
+if systemctl is-active --quiet vipercoma-wifi.service \
+    && ! grep -Fqx 'HELPER_API = "vipercoma-wifi-helper-v1"' /usr/local/libexec/vipercoma-wifi-admin.py 2>/dev/null; then
+  echo 'An unrecognized Wi-Fi manager is active. Inspect and preserve its configuration before upgrading it.' >&2; exit 1
 fi
 runuser -u "$station_user" -- python3 -m venv .venv
 runuser -u "$station_user" -- .venv/bin/python -m pip install -r requirements.txt
@@ -71,8 +72,8 @@ systemctl daemon-reload
 systemctl enable vipercoma-workspace.service
 systemctl restart vipercoma-workspace.service
 for attempt in {1..15}; do
-  if .venv/bin/python scripts/check-health.py 2.0.0; then
-    echo 'Station 2.0.0 is responding. Use your existing Station password.'
+  if .venv/bin/python scripts/check-health.py 2.1.0-wifi; then
+    echo 'Station 2.1.0 Wi-Fi release is responding. Use your existing Station password.'
     echo 'Open http://pihole.local:8080 or the current LAN address.'
     echo "Previous service configuration: $station_backup"
     trap - ERR

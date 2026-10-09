@@ -1,0 +1,18 @@
+[Unit]
+Description=Local DNS and DHCP for Station setup hotspot
+After=NetworkManager.service vipercoma-wifi.service
+[Service]
+Type=simple
+ExecStart=/usr/sbin/dnsmasq --keep-in-foreground --user=root --conf-file=/etc/vipercoma-station/dnsmasq.conf --pid-file=/run/vipercoma-setup/dnsmasq.pid --dhcp-leasefile=/run/vipercoma-setup/dnsmasq.leases
+Restart=on-failure
+RestartSec=2
+RuntimeDirectory=vipercoma-setup
+RuntimeDirectoryMode=0755
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/run/vipercoma-setup
+UMask=0077
+[Install]
+WantedBy=multi-user.target
