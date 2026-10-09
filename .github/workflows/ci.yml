@@ -1,0 +1,24 @@
+name: Station checks
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ['3.12', '3.13']
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python-version }}
+      - run: python -m pip install -r requirements.txt
+      - run: python -m compileall -q app.py auth.py notes.py diagnostics.py tests
+      - run: node --check static/station.js && node --check static/workspace.js && node --check static/station-effects.js
+      - run: bash -n scripts/install.sh && bash -n scripts/update.sh
+      - run: python -W always::ResourceWarning -m unittest discover -s tests -v

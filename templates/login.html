@@ -1,0 +1,8 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Sign in · vipercoma Station</title><link rel="stylesheet" href="{{ url_for('static',filename='station.css') }}"><link rel="stylesheet" href="{{ url_for('static',filename='wifi.css') }}"></head>
+<body><main class="signin"><div class="brand"><img class="brand-mark" src="{{ url_for('static',filename='viper.svg') }}" alt="" width="32" height="32">vipercoma <span>/ Station</span></div>
+<section class="hero network-hero"><h1>Your Station</h1><p>Enter your Station password.</p></section>
+<form class="settings" method="post" action="/login"><input type="hidden" name="login_csrf" value="{{ session.login_csrf }}"><label for="password">Station password</label><input id="password" name="password" type="password" autocomplete="current-password" required maxlength="128">
+{% if error %}<p role="alert">{{ error }}</p>{% endif %}<button type="submit">Sign in</button></form><p class="hint">Use your saved Station password. Your browser can remember it in its password manager.</p></main></body></html>
+

@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark light"><title>vipercoma Station</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='station.css') }}"></head><body><div class="background" aria-hidden="true"><div class="dots"></div><div class="glow"></div><div class="pulse"></div></div>
+<main><header><div class="brand"><img class="brand-mark" src="{{ url_for('static', filename='viper.svg') }}" width="32" height="32" alt="">vipercoma <span>/ Station</span></div><div class="header-actions"><a href="/workspace" class="network-link">Workspace</a>
+<button class="icon-button" id="theme" aria-label="Switch to light theme" title="Switch theme"><svg aria-hidden="true" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5m11 11L19 19M5 19l1.5-1.5m11-11L19 5"/></svg></button>
+<button class="icon-button" id="settings-toggle" aria-label="Visual settings" title="Visual settings" aria-expanded="false" aria-controls="settings"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M4 7h16M4 17h16"/><circle cx="9" cy="7" r="3" fill="var(--surface)"/><circle cx="15" cy="17" r="3" fill="var(--surface)"/></svg></button></div></header>
+<section class="settings" id="settings" hidden aria-label="Visual settings"><div class="settings-row"><div class="settings-copy"><h2>Subtle phone tilt</h2><p id="motion-note">Gently shift the background as you move your phone. Optional.</p></div><button id="motion" aria-pressed="false">Enable tilt</button></div></section>
+<section class="hero"><div class="eyebrow">Your portable workspace</div><h1>Small device.<br>Room to build.</h1><p>A home for your notes, diagnostics, and device health.</p><div class="hero-bottom"><span class="badge" id="status" role="status">Connecting…</span><span class="hint">One workspace. More possibilities.</span></div></section>
+<div class="metrics">
+<section class="metric" aria-label="Available memory"><label>RAM available</label><div class="value" id="memory">—</div><div class="detail" id="memory-detail">Waiting for device</div></section>
+<section class="metric" aria-label="Free storage"><label>Storage free</label><div class="value" id="disk">—</div><div class="detail" id="disk-detail">Waiting for device</div></section>
+<section class="metric" aria-label="Device uptime"><label>Uptime</label><div class="value" id="uptime">—</div><div class="detail" id="host">Waiting for device</div></section>
+</div>
+<nav class="tabs" role="tablist" aria-label="Workspace sections"><button id="tab-overview" role="tab" aria-selected="true" aria-controls="overview" tabindex="0">Overview</button><button id="tab-tools" role="tab" aria-selected="false" aria-controls="catalog" tabindex="-1">Tools <span class="count">{{ tools|length }}</span></button></nav>
+<section id="overview" role="tabpanel" aria-labelledby="tab-overview"><div class="section"><h2>Pinned tools</h2><button class="text-button" id="browse">Browse all tools →</button></div><div class="tools" id="pinned-tools"></div><p class="empty" id="pinned-empty" hidden>Pin a tool from the Tools tab to keep it here.</p></section>
+<section id="catalog" role="tabpanel" aria-labelledby="tab-tools" hidden><div class="toolbar"><input id="search" type="search" placeholder="Find a tool…" aria-label="Search tools"><select id="category" aria-label="Tool category"><option value="all">All tools</option><option value="files">Files</option><option value="network">Network</option></select></div><div class="tools" id="all-tools"></div><p class="empty" id="search-empty" hidden>No tools match. Try another search or category.</p></section>
+<footer><span>Station {{ version }}</span><span id="updated">No readings yet</span></footer></main><div class="toast" id="toast" role="status" hidden></div>
+<script id="tools-data" type="application/json">{{ tools|tojson }}</script>
+<script src="{{ url_for('static', filename='station.js') }}" defer></script></body></html>
+
