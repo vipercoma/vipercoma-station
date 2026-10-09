@@ -5,9 +5,9 @@ from pathlib import Path
 
 IFACE = "wlan0"
 HELPER_API = "vipercoma-wifi-helper-v1"
-AP_ID = "vipercoma-setup"
+AP_ID = "vipercoma-setup-managed"
 WIFI_DIR = Path("/etc/NetworkManager/system-connections")
-AP_FILE = WIFI_DIR / "vipercoma-setup.nmconnection"
+AP_FILE = WIFI_DIR / "vipercoma-setup-managed.nmconnection"
 LOCK = Path("/run/lock/vipercoma-wifi.lock")
 PENDING = Path("/run/vipercoma-wifi-connect.pending")
 WRAPPER = "/usr/local/libexec/vipercoma-wifi-admin.py"
@@ -102,7 +102,8 @@ def install_ap():
     WIFI_DIR.mkdir(mode=0o700, parents=True, exist_ok=True)
     fd, temp = tempfile.mkstemp(prefix=".vipercoma-setup-", dir=str(WIFI_DIR))
     try:
-        os.fchmod(fd, 0o600)
+        if hasattr(os, "fchmod"):
+            os.fchmod(fd, 0o600)
         with os.fdopen(fd, "w", encoding="utf-8") as f: f.write(content); f.flush(); os.fsync(f.fileno())
         os.replace(temp, AP_FILE)
         run(["/usr/bin/nmcli", "connection", "load", str(AP_FILE)], timeout=15)

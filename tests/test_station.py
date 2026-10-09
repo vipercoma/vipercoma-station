@@ -201,6 +201,33 @@ class PasswordTests(unittest.TestCase):
 
 
 class WifiHelperTests(unittest.TestCase):
+    def test_setup_hotspot_install_preserves_existing_user_profile(self):
+        with tempfile.TemporaryDirectory(dir=os.environ.get('TEMP')) as directory:
+            root = Path(directory)
+            old_profile = root / 'vipercoma-setup.nmconnection'
+            old_profile.write_text('existing shared hotspot profile\n')
+            managed_profile = root / 'vipercoma-setup-managed.nmconnection'
+            show_count = 0
+
+            def fake_run(args, **kwargs):
+                nonlocal show_count
+                if args[-1] == wifi_admin.AP_ID and args[-2] == 'show':
+                    show_count += 1
+                    return subprocess.CompletedProcess(args, 10 if show_count == 1 else 0,
+                                                       '' if show_count == 1 else 'managed-uuid\n', '')
+                return subprocess.CompletedProcess(args, 0, '', '')
+
+            with patch.object(wifi_admin, 'WIFI_DIR', root), \
+                 patch.object(wifi_admin, 'AP_FILE', managed_profile), \
+                 patch.object(wifi_admin, 'run', side_effect=fake_run), \
+                 patch.object(wifi_admin, 'getpass') as getpass:
+                getpass.getpass.side_effect = ['test-hotspot-password', 'test-hotspot-password']
+                wifi_admin.install_ap()
+
+            self.assertEqual(old_profile.read_text(), 'existing shared hotspot profile\n')
+            self.assertIn('ssid=vipercoma-setup', managed_profile.read_text())
+            self.assertIn('address1=10.77.0.1/24', managed_profile.read_text())
+
     def test_scan_keeps_strongest_reading_for_each_ssid(self):
         output = "Home:31:WPA2\nGuest:40:WPA2\nHome:88:WPA2\n"
         with patch.object(wifi_admin, 'run', return_value=subprocess.CompletedProcess([], 0, output, '')):
