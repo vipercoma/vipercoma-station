@@ -4,7 +4,7 @@
 
 **[Watch the interface preview](docs/previews/station-interaction-preview.mp4)** · Design preview of the dashboard interactions.
 
-A local workspace for a Raspberry Pi or Linux computer. Version **2.2.0-wifi** adds an optional boot-time Wi-Fi setup hotspot while preserving Station sign-in, notes, diagnostics, and device health. The authenticated home page is a yellow launcher dashboard with a reactive dotted background, live device readings, and Overview, Tool Catalog, Activity, and System tabs.
+A local workspace for a Raspberry Pi or Linux computer. Version **2.3.0-memory** adds a private, file-backed Markdown library with search and a revocable read-only API for AI clients, alongside boot-time Wi-Fi onboarding, notes, diagnostics, and device health. The authenticated home page is a yellow launcher dashboard with a reactive dotted background, live device readings, and Overview, Tool Catalog, Activity, and System tabs.
 
 ## Boot and Wi-Fi onboarding
 
@@ -38,8 +38,11 @@ Without Wi-Fi setup enabled, Station stays on the host's existing network. Open 
 | Shared notes | Persist up to 200 notes, each up to 4000 characters |
 | Network diagnostics | Read addresses, routes, neighbor cache, DNS, and latency |
 | Device health | Show RAM, storage, uptime, temperature, and load |
+| Memory library | Create, search, and edit private Markdown files; optionally issue a read-only API key for an AI client on your tailnet |
 
 The dashboard links to those implemented tools. Activity history is not persistent yet; its tab reports the current session and makes that limitation clear. The launcher artwork's Audit Center, Pwnagotchi Audit, File Hub, Automation Flows, CyberChef, and PiKVM cards are design examples, not installed or working tools in this release.
+
+The Memory Library stores ordinary Markdown, text, JSON, and selected source-reference files under the Station state directory (`memory/`), outside the source checkout. It supports up to 500 files, 512 KiB per file, and 20 MiB total; stored source files are never executed. Its optional bearer key grants read-only access to list, search, and read endpoints; the WebUI login remains required for edits and deletion. See [the Memory Library API guide](docs/memory-library.md). Local AI clients with tailnet access can read the API. Cloud AI services cannot automatically access a private Tailscale address, and Station does not sync memory files to third-party cloud storage.
 
 The Wi-Fi setup page is a separate, authenticated system feature. It is not a general-purpose network-control tool. No traffic blocking, gateway manipulation, password capture, or internet forwarding is implemented.
 

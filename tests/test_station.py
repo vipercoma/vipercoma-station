@@ -134,7 +134,7 @@ class StationTests(unittest.TestCase):
         self.assertNotIn('unsafe-inline', response.headers['Content-Security-Policy'])
 
     def test_health_identifies_release(self):
-        self.assertEqual(self.client.get('/healthz').json, {'status':'ok','version':'2.2.0-wifi'})
+        self.assertEqual(self.client.get('/healthz').json, {'status':'ok','version':'2.3.0-memory'})
 
     def test_logout_clears_session(self):
         self.assertEqual(self.client.post('/logout', headers=self.headers).status_code, 200)

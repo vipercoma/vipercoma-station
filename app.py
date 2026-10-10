@@ -17,8 +17,9 @@ from waitress import serve
 from diagnostics import health as device_health, probe
 from auth import STATE, session_key, password_matches, password_ready
 from notes import NotesStore
+from memory_vault import MemoryVault, issue_read_token, read_token_matches, revoke_read_token
 
-VERSION = "2.2.0-wifi"
+VERSION = "2.3.0-memory"
 WIFI_HELPER = "/usr/local/libexec/vipercoma-wifi"
 TOOLS = [
     {"id": "notes", "name": "Shared notes", "category": "files", "status": "Ready",
@@ -30,11 +31,14 @@ TOOLS = [
     {"id": "health", "name": "Device health", "category": "network", "status": "Live readings",
      "description": "See memory, storage, uptime, temperature, and system details.",
      "note": "Readings come from this host.", "url": "/workspace#health"},
+    {"id": "memory", "name": "Memory library", "category": "files", "status": "Markdown · private",
+     "description": "Keep project knowledge and preferences in portable Markdown files.",
+     "note": "Search from Station or read through the private API.", "url": "/memory"},
 ]
 
 
 app = Flask(__name__)
-app.config.update(MAX_CONTENT_LENGTH=8192, SESSION_COOKIE_HTTPONLY=True,
+app.config.update(MAX_CONTENT_LENGTH=4 * 1024 * 1024, SESSION_COOKIE_HTTPONLY=True,
                   SESSION_COOKIE_SAMESITE="Strict", PERMANENT_SESSION_LIFETIME=timedelta(hours=12))
 app.secret_key = session_key()
 login_attempts = {}
@@ -56,6 +60,10 @@ def local_access():
     if request.endpoint in (None, "static", "health", "login", "captive_check"):
         return
     if not session.get("authenticated"):
+        bearer = request.headers.get("Authorization", "")
+        if (request.path.startswith("/api/memory/") and request.method == "GET"
+                and bearer.startswith("Bearer ") and read_token_matches(bearer[7:])):
+            return
         if request.path.startswith("/api/"):
             return jsonify(error="Sign in to Station."), 401
         next_page = "/setup" if request.endpoint == "wifi_setup_page" else "/"
@@ -118,11 +126,85 @@ def logout():
 
 
 notes_store = NotesStore(STATE / "workspace")
+memory_vault = MemoryVault()
 
 
 @app.get("/workspace")
 def workspace_page():
     return render_template("workspace.html", version=VERSION)
+
+
+@app.get("/memory")
+def memory_page():
+    return render_template("memory.html", version=VERSION)
+
+
+@app.get("/api/memory/files")
+def memory_list():
+    return jsonify(files=memory_vault.listing())
+
+
+@app.get("/api/memory/search")
+def memory_search():
+    try:
+        return jsonify(results=memory_vault.search(request.args.get("q", "")))
+    except ValueError as exc:
+        return jsonify(error=str(exc)), 400
+
+
+@app.get("/api/memory/files/<path:filename>")
+def memory_read(filename):
+    try:
+        return jsonify(name=filename, content=memory_vault.read(filename))
+    except FileNotFoundError:
+        abort(404)
+    except (ValueError, UnicodeError):
+        return jsonify(error="The Markdown file could not be read."), 400
+
+
+@app.post("/api/memory/files")
+def memory_create():
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict):
+        return jsonify(error="Provide a filename and Markdown content."), 400
+    try:
+        memory_vault.save(data.get("name"), data.get("content"))
+    except FileExistsError:
+        return jsonify(error="That filename already exists. Open it to edit."), 409
+    except ValueError as exc:
+        return jsonify(error=str(exc)), 400
+    return jsonify(ok=True), 201
+
+
+@app.post("/api/memory/files/<path:filename>/save")
+def memory_save(filename):
+    data = request.get_json(silent=True)
+    try:
+        memory_vault.save(filename, data.get("content") if isinstance(data, dict) else None, replace=True)
+    except ValueError as exc:
+        return jsonify(error=str(exc)), 400
+    return jsonify(ok=True)
+
+
+@app.post("/api/memory/files/<path:filename>/delete")
+def memory_delete(filename):
+    try:
+        if not memory_vault.delete(filename):
+            abort(404)
+    except ValueError:
+        abort(400)
+    return jsonify(ok=True)
+
+
+@app.post("/api/memory/access-token")
+def memory_token_create():
+    return jsonify(token=issue_read_token())
+
+
+@app.post("/api/memory/access-token/revoke")
+def memory_token_revoke():
+    revoke_read_token()
+    return jsonify(ok=True)
 
 
 @app.get("/setup")

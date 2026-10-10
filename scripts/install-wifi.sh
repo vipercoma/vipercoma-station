@@ -33,8 +33,8 @@ done
 [[ -x /usr/sbin/dnsmasq ]] || { echo 'dnsmasq executable not found at /usr/sbin/dnsmasq.' >&2; exit 1; }
 [[ -x $station_source/.venv/bin/python ]] || { echo 'Install Station first with sudo bash scripts/install.sh.' >&2; exit 1; }
 [[ -f $unit_dir/vipercoma-workspace.service ]] || { echo 'Station service is not installed.' >&2; exit 1; }
-if ! curl -fsS http://127.0.0.1:8080/healthz | grep -q '2.2.0-wifi'; then
-  echo 'Upgrade and start Station 2.2.0-wifi before installing Wi-Fi setup.' >&2; exit 1
+if ! curl -fsS http://127.0.0.1:8080/healthz | grep -q '2.3.0-memory'; then
+  echo 'Upgrade and start Station 2.3.0-memory before installing Wi-Fi setup.' >&2; exit 1
 fi
 
 # Refuse to overwrite a service/helper from another Wi-Fi implementation.
@@ -107,11 +107,11 @@ systemctl daemon-reload
 systemctl enable vipercoma-wifi.service
 systemctl restart vipercoma-wifi.service
 for attempt in {1..25}; do
-  if curl -fsS http://127.0.0.1:8080/healthz | grep -q '2.2.0-wifi'; then break; fi
+  if curl -fsS http://127.0.0.1:8080/healthz | grep -q '2.3.0-memory'; then break; fi
   sleep 1
 done
-curl -fsS http://127.0.0.1:8080/healthz | grep -q '2.2.0-wifi' || {
-  echo 'Station is not responding as version 2.2.0-wifi.' >&2; exit 1;
+curl -fsS http://127.0.0.1:8080/healthz | grep -q '2.3.0-memory' || {
+  echo 'Station is not responding as version 2.3.0-memory.' >&2; exit 1;
 }
 echo 'Saved Wi-Fi is tried first; the setup hotspot starts when it is unavailable.'
 echo 'Connect to vipercoma-setup and open http://10.77.0.1:8080/setup.'
